@@ -55,9 +55,14 @@ fn main() {
     let args = std::env::args().collect::<Vec<_>>();
     let cmdopt = CmdOption::new_from_cmd_line(args);
 
-    let mbox = MailMessage::new_from_stream(std::io::stdin()).expect("Failed to read from stream");
+    let sender = cmdopt
+        .sender
+        .unwrap_or("MAILER-DAEMON@localhost".to_string());
+
+    let mut mbox =
+        MailMessage::new_from_stream(std::io::stdin()).expect("Failed to read from stream");
+    mbox.fix_mail_headers(&sender);
 
     // TODO spool
-    let sender = cmdopt.sender.unwrap_or("MAILER-DAEMON".to_string());
     mbox.write_to_mbox(std::io::stdout(), &sender);
 }

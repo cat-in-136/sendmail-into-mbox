@@ -1,8 +1,9 @@
-use chrono::Utc;
+use chrono::{Local, Utc};
+use std::borrow::BorrowMut;
 use std::io::{BufRead, BufReader, BufWriter, Error, Read, Write};
 
 /// Representation of a mail message
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MailMessage {
     /// Mail headers.
     ///
@@ -35,7 +36,43 @@ impl MailMessage {
         Ok(Self { headers, body })
     }
 
+    /// Fix mail headers.
+    ///
+    /// * Remove `Bcc:` headers
+    /// * Add `Message-ID:` header if absent
+    /// * Add `Date:` header if absent
+    /// * Add `From:` header if absent
+    ///
+    /// # Note
+    /// `sender` should not be empty, in which case use `MAILER-DAEMON` instead.
+    pub fn fix_mail_headers(&mut self, sender: &str) {
+        // Remove Bcc: headers
+        self.headers.retain(|v| !v.starts_with("Bcc:"));
+
+        if !self.headers.iter().any(|v| v.starts_with("Message-ID:")) {
+            let now = Utc::now();
+            let message_id = format!(
+                "{}.{}.{}@localhost",
+                now.timestamp(),
+                now.timestamp_subsec_millis(),
+                now.timestamp_subsec_micros()
+            );
+            self.headers
+                .insert(0, format!("Message-ID: <{}>\r\n", message_id));
+        }
+        if !self.headers.iter().any(|v| v.starts_with("Date:")) {
+            self.headers
+                .insert(0, format!("Date: {}\r\n", Local::now().to_rfc2822()));
+        }
+        if !self.headers.iter().any(|v| v.starts_with("From:")) {
+            self.headers.insert(0, format!("From: {}\r\n", sender));
+        }
+    }
+
     /// Write the mail message to `stream` in RFC4155 Mbox format.
+    ///
+    /// # Note
+    /// `sender` should not be empty, in which case use `MAILER-DAEMON` instead.
     pub fn write_to_mbox(&self, stream: impl Write, sender: &str) -> Result<(), Error> {
         let mut writer = BufWriter::new(stream);
 
@@ -115,6 +152,19 @@ mod test {
         let mail = MailMessage::new_from_stream(input).unwrap();
         assert!(mail.headers.is_empty());
         assert_eq!(mail.body, "body\r\nbody\r\n");
+    }
+
+    #[test]
+    fn test_fix_mail_headers() {
+        let mut mail = MailMessage {
+            headers: vec!["Bcc: secret\r\n".to_string()],
+            body: "\r\n".to_string(),
+        };
+        mail.fix_mail_headers("sender");
+        assert_eq!(mail.headers[0], "From: sender\r\n");
+        assert!(mail.headers[1].starts_with("Date: "));
+        assert!(mail.headers[2].starts_with("Message-ID: "));
+        assert_eq!(mail.headers.len(), 3);
     }
 
     #[test]
