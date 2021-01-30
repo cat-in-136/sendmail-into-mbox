@@ -5,6 +5,7 @@ mod mail_message;
 use crate::config::Config;
 use crate::error::Error as AppError;
 use crate::mail_message::MailMessage;
+use fs2::FileExt;
 use std::fs::OpenOptions;
 use std::io::BufWriter;
 use std::path::PathBuf;
@@ -21,14 +22,16 @@ fn sendmail_main() -> Result<(), AppError> {
         mbox.write_to_mbox(std::io::stdout(), &config.sender)
             .map_err(|e| AppError::WriteSpoolStdOut(e))?;
     } else {
+        let io_err_to_app_error = |e| AppError::WriteSpool(PathBuf::from(&config.spool_file), e);
         let file = OpenOptions::new()
             .append(true)
             .create_new(false)
             .open(&config.spool_file)
-            .map_err(|e| AppError::WriteSpool(PathBuf::from(&config.spool_file), e))?;
+            .map_err(&io_err_to_app_error)?;
+        file.lock_exclusive().map_err(&io_err_to_app_error)?;
         let mut writer = BufWriter::new(file);
         mbox.write_to_mbox(&mut writer, &config.sender)
-            .map_err(|e| AppError::WriteSpool(PathBuf::from(&config.spool_file), e))?;
+            .map_err(&io_err_to_app_error)?;
     }
 
     Ok(())
