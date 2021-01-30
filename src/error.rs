@@ -8,6 +8,9 @@ pub enum Error {
     ConfigIo(PathBuf, #[source] io::Error),
     #[error("Failed to load config file `{0}`: {1}")]
     ConfigToml(PathBuf, #[source] toml::de::Error),
+    #[error("Config file and its ancestries must not be world writable: `{0}`")]
+    #[cfg(unix)]
+    ConfigFileWorldWritable(PathBuf),
     #[error("Failed to read the mail message from stream")]
     ReadMessage(#[source] io::Error),
     #[error("Failed to write to `{0}`: {1}")]
