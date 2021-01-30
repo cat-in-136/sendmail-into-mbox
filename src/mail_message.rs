@@ -67,6 +67,7 @@ impl MailMessage {
     /// `sender` should not be empty, in which case use `MAILER-DAEMON@localhost` instead.
     pub fn write_to_mbox(&self, stream: impl Write, sender: &str) -> Result<(), Error> {
         let mut writer = BufWriter::new(stream);
+        let now = Local::now();
 
         // Each message in the mbox database MUST be immediately preceded
         // by a single separator line
@@ -81,7 +82,7 @@ impl MailMessage {
             // a timestamp indicating the UTC date and time when the message
             // was originally received, conformant with the syntax of the
             // traditional UNIX 'ctime' output sans timezone
-            Utc::now().format("%c")
+            now.naive_utc().format("%c")
         ))?;
 
         fn escape_line(line: &str) -> String {
@@ -101,6 +102,14 @@ impl MailMessage {
 
             line
         }
+
+        // received        =   "Received:" *received-token ";" date-time CRLF
+        // https://tools.ietf.org/html/rfc5322#section-3.6.7
+        writer.write_fmt(format_args!(
+            "Received: by localhost with {}; {}\n",
+            env!("CARGO_PKG_NAME"),
+            now.to_rfc2822()
+        ))?;
 
         for header in &self.headers {
             writer.write(escape_line(header).as_bytes())?;
@@ -171,15 +180,23 @@ mod test {
         mail.write_to_mbox(&mut mbox, "djb").unwrap();
 
         let mbox_str = std::str::from_utf8(&mbox).unwrap();
+        let mbox_lines = mbox_str.splitn(3, "\n").collect::<Vec<_>>();
 
+        assert!(mbox_lines[0].starts_with("From djb "));
+        assert!(mbox_lines[1].starts_with(concat!(
+            "Received: by localhost with ",
+            env!("CARGO_PKG_NAME"),
+            "; "
+        )));
         assert_eq!(
-            mbox_str.splitn(2, "\n").nth(1).unwrap(),
+            mbox_lines[2],
             "From: djb\n\
-                   To: god\n\
-                   \n\
-                   >From now through August I'll be doing beta testing.\n\
-                   Thanks for your interest.\n\
-                   \n"
+             To: god\n\
+             \n\
+             >From now through August I'll be doing beta testing.\n\
+             Thanks for your interest.\n\
+             \n"
         );
+        assert_eq!(mbox_lines.len(), 3);
     }
 }
