@@ -14,5 +14,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = { version = "0.4", default-features = false, features = ["clock"] }
 thiserror = "1"
+serde = { version = "1", features = ["derive"] }
+toml = "0.5"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[dev-dependencies]
+tempfile = "3"
