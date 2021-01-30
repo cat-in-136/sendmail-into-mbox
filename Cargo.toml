@@ -1,13 +1,13 @@
 [package]
-name = "in-house-sendmail"
+name = "sendmail-into-mbox"
 license = "MIT"
 authors = ["@cat_in_136"]
 categories = ["command-line-utilities", "email"]
-description = "In-house sendmail command to read email from stdin and save to file"
-homepage = "https://github.com/cat-in-136/in-house-sendmail"
+description = "Alternative sendmail command to read email from stdin and write to a mbox file directly"
+homepage = "https://github.com/cat-in-136/sendmail-into-mbox"
 readme = "README.md"
 keywords = ["sendmail", "mbox"]
-repository = "https://github.com/cat-in-136/in-house-sendmail"
+repository = "https://github.com/cat-in-136/sendmail-into-mbox"
 version = "0.1.0"
 edition = "2018"
 
