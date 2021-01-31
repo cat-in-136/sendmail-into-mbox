@@ -108,6 +108,13 @@ mod test {
             Err(AppError::ConfigIo(_, _))
         ));
     }
+
+    #[test]
+    fn test_misc_data() {
+        assert!(
+            Config::new_from_toml_file("misc/sendmail-into-mbox.toml").is_ok()
+        );
+    }
 }
 
 #[cfg(unix)]

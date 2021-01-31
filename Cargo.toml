@@ -22,3 +22,27 @@ toml = "0.5"
 
 [dev-dependencies]
 tempfile = "3"
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/sendmail-into-mbox", dest = "/usr/sbin/sendmail-into-mbox", user = "root", group = "mail", mode = "2755" },
+    { source = "misc/sendmail.into-mbox", dest = "/usr/sbin/sendmail.into-mbox", mode = "0755" },
+    { source = "misc/sendmail-into-mbox.toml", dest = "/etc/sendmail-into-mbox.toml", mode = "0644", config = true }
+]
+post_install_script = """
+/usr/sbin/alternatives  --install /usr/sbin/sendmail mta /usr/sbin/sendmail.into-mbox 10
+"""
+pre_uninstall_script = """
+#only remove in case of erase (but not at upgrade)
+if [ $1 -eq 0 ] ; then
+  /usr/sbin/alternatives --remove mta /usr/sbin/sendmail.into-mbox
+fi
+exit 0
+"""
+post_uninstall_script = """
+if [ "$1" -ge "1" ]; then
+  if [ "`readlink /etc/alternatives/mta`" == "/usr/sbin/sendmail.into-mbox" ]; then
+    /usr/sbin/alternatives --set mta /usr/sbin/sendmail.into-mbox
+  fi
+fi
+"""

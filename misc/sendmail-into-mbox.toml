@@ -1,0 +1,8 @@
+# sendmail-into-mbox configuration file
+
+# Spool file (output mbox) or "-" for standard output.
+# Make ensure the file is available in advance.
+spool_file = "/var/spool/mail/root"
+
+# Sender mail address
+sender = "MAILER-DAEMON@localhost"
