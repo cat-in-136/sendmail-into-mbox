@@ -45,6 +45,9 @@ impl MailMessage {
         self.headers.retain(|v| !v.starts_with("Bcc:"));
 
         if !self.headers.iter().any(|v| v.starts_with("Message-ID:")) {
+            // https://tools.ietf.org/html/rfc5322#section-3.6.4
+            // message-id      =   "Message-ID:" msg-id CRLF
+            // msg-id          =   [CFWS] "<" id-left "@" id-right ">" [CFWS]
             let now = Utc::now();
             let message_id = format!(
                 "{}.{}.{}@localhost",
@@ -56,6 +59,8 @@ impl MailMessage {
                 .insert(0, format!("Message-ID: <{}>\r\n", message_id));
         }
         if !self.headers.iter().any(|v| v.starts_with("Date:")) {
+            // https://tools.ietf.org/html/rfc5322#section-3.6.1
+            // orig-date       =   "Date:" date-time CRLF
             self.headers
                 .insert(0, format!("Date: {}\r\n", Local::now().to_rfc2822()));
         }
@@ -69,9 +74,11 @@ impl MailMessage {
         let mut writer = BufWriter::new(stream);
         let now = Local::now();
 
+        // https://tools.ietf.org/html/rfc4155#section-2
         // Each message in the mbox database MUST be immediately preceded
         // by a single separator line
         writer.write_fmt(format_args!(
+            // https://tools.ietf.org/html/rfc4155#appendix-A
             // The exact character sequence of "From";
             // a single Space character (0x20);
             "From {} {}\n",
@@ -91,11 +98,11 @@ impl MailMessage {
             // Feed pair
             let mut line = line.replace("\r\n", "\n");
 
+            // http://qmail.org/man/man5/mbox.html
             // The program then copies the message, applying >From quoting
             // to each line.  >From quoting ensures that the resulting
             // lines are not From_ lines:  the program prepends a > to any
             // From_ line, >From_ line, >>From_ line, >>>From_ line, etc.
-            // http://qmail.org/man/man5/mbox.html
             if line.trim_start_matches(">").starts_with("From ") {
                 line.replace_range(0..0, ">")
             }
@@ -103,8 +110,8 @@ impl MailMessage {
             line
         }
 
-        // received        =   "Received:" *received-token ";" date-time CRLF
         // https://tools.ietf.org/html/rfc5322#section-3.6.7
+        // received        =   "Received:" *received-token ";" date-time CRLF
         writer.write_fmt(format_args!(
             "Received: by localhost with {}; {}\n",
             env!("CARGO_PKG_NAME"),
@@ -115,15 +122,17 @@ impl MailMessage {
             writer.write(escape_line(header).as_bytes())?;
         }
 
-        // The body is simply a sequence of characters that
-        // follows the header and is separated from the header by an empty line
+        // https://tools.ietf.org/html/rfc5322#section-2.1
+        // The body is simply a sequence of
+        // characters that follows the header section and is separated from the
+        // header section by an empty line
         writer.write("\n".as_bytes())?;
-
         for line in self.body.lines() {
             writer.write(escape_line(line).as_bytes())?;
             writer.write("\n".as_bytes())?;
         }
 
+        // https://tools.ietf.org/html/rfc4155#appendix-A
         // Each message in the database MUST be terminated by an empty
         // line, containing a single end-of-line marker.
         writer.write("\n".as_bytes())?;
